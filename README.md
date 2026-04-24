@@ -1,4 +1,4 @@
-# Node Internship Project
+# Internship Project
 
 ## Run project
 ```bash
