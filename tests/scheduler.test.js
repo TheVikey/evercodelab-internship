@@ -1,5 +1,5 @@
-const createScheduler = require('../scheduler');
-const ValidationError = require('../errors/ValidationError');
+const createScheduler = require('../src/scheduler');
+const ValidationError = require('../src/errors/ValidationError');
 
 describe('scheduleTask', () => {
 
