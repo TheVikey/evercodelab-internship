@@ -1,0 +1,128 @@
+openapi: 3.0.3
+info:
+  title: Evercodelabs Internship API
+  version: 1.2.0
+  description: CRUD для валют и health-check эндпоинт
+paths:
+  /status:
+    get:
+      summary: Проверка работоспособности сервера
+      tags: [Monitoring]
+      responses:
+        '200':
+          description: Сервер работает
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+
+  /currencies:
+    get:
+      summary: Получить список всех валют
+      tags: [Currency]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Успешный список
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Currency'
+    post:
+      summary: Создать новую валюту
+      tags: [Currency]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CurrencyInput'
+      responses:
+        '201':
+          description: Валюта создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Currency'
+        '400':
+          description: Ошибка валидации
+
+  /currencies/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    put:
+      summary: Обновить валюту
+      tags: [Currency]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CurrencyInput'
+      responses:
+        '200':
+          description: Валюта обновлена
+        '404':
+          description: Не найдено
+    delete:
+      summary: Удалить валюту
+      tags: [Currency]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204':
+          description: Успешно удалено
+  /price:
+    get:
+      summary: Получить курсы с Binance для указанной валюты
+      tags: [Price]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: currency
+          required: true
+          schema: { type: string }
+          description: Тикер валюты (должен существовать в локальной БД)
+      responses:
+        '200':
+          description: Список пар, содержащих тикер
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    symbol: { type: string }
+                    price: { type: string }
+        '400':
+          description: Параметр currency не указан или невалиден
+        '404':
+          description: Валюта не найдена в локальной БД
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: "JWT"
+  schemas:
+    Currency:
+      type: object
+      properties:
+        id: { type: string, readOnly: true }
+        name: { type: string }
+        ticker: { type: string }
+    CurrencyInput:
+      type: object
+      required: [name, ticker]
+      properties:
+        name: { type: string, example: "US Dollar" }
+        ticker: { type: string, example: "USD" }
