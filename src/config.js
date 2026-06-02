@@ -21,7 +21,6 @@ function getOrCreateSecret() {
 }
 const config = {
   appName: "evercodelabs-internship",
-  version: "1.2.0",
   port: 3000,
   authToken: getOrCreateSecret()
 };

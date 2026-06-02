@@ -1,13 +1,8 @@
-class ValidationError extends Error {
+const AppError = require('./AppError');
+
+class ValidationError extends AppError {
   constructor(message, context = {}) {
-    super(message);
-
-    this.name = 'ValidationError';
-    this.statusCode = 400;
-    this.timestamp = new Date().toISOString();
-    this.context = context;
-
-    Error.captureStackTrace(this, this.constructor);
+    super(message, 400, context);
   }
 }
 
