@@ -1,12 +1,13 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
+const ForbiddenError = require('../errors/ForbiddenError');
 
 function createAuthMiddleware() {
   return (req, res, next) => {
     const secret = config.authToken;
-    
+
     if (!secret) {
-      return res.status(403).json({ error: 'Forbidden: server not configured' });
+      throw new ForbiddenError('Server not configured');
     }
 
     const authHeader = req.headers.authorization;
@@ -15,14 +16,14 @@ function createAuthMiddleware() {
       : authHeader;
 
     if (!token) {
-      return res.status(403).json({ error: 'Forbidden' });
+      throw new ForbiddenError('Forbidden');
     }
 
     try {
       jwt.verify(token, secret);
       next();
     } catch (err) {
-      return res.status(403).json({ error: 'Forbidden' });
+      throw new ForbiddenError('Forbidden');
     }
   };
 }

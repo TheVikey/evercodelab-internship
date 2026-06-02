@@ -1,13 +1,8 @@
-class NotFoundError extends Error {
+const AppError = require('./AppError');
+
+class NotFoundError extends AppError {
   constructor(message, context = {}) {
-    super(message);
-
-    this.name = 'NotFoundError';
-    this.statusCode = 404;
-    this.timestamp = new Date().toISOString();
-    this.context = context;
-
-    Error.captureStackTrace(this, this.constructor);
+    super(message, 404, context);
   }
 }
 
