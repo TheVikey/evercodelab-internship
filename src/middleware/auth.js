@@ -2,9 +2,9 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const ForbiddenError = require('../errors/ForbiddenError');
 
-function createAuthMiddleware() {
+function createAuthMiddleware(tokenOverride) {
   return (req, res, next) => {
-    const secret = config.authToken;
+    const secret = tokenOverride || config.authToken;
 
     if (!secret) {
       throw new ForbiddenError('Server not configured');

@@ -13,12 +13,12 @@ function setupPriceRoute(app, currencyStore) {
 
       const ticker = currency.trim().toUpperCase();
 
-      const exists = currencyStore.getCurrencies().some(c => c.ticker === ticker);
+      const exists = currencyStore.getCurrencyByTicker(ticker);
       if (!exists) {
         return next(new NotFoundError(`Currency "${ticker}" not found in local database`));
       }
 
-      const allPrices = await fetchBinancePrices();  // retry уже внутри
+      const allPrices = await fetchBinancePrices();
       const filtered = allPrices.filter(p => p.symbol.includes(ticker));
 
       res.json(filtered);

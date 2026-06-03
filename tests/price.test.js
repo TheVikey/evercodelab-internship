@@ -1,30 +1,65 @@
 jest.mock('../src/services/services_binanceClient');
 const { fetchBinancePrices } = require('../src/services/services_binanceClient');
 const http = require('http');
-const createApp = require('../src/app');
-const currencyStore = require('../src/store/store_currencies');
-require('dotenv').config();
+const express = require('express');
+const Database = require('better-sqlite3');
+const CurrencyRepository = require('../src/repositories/CurrencyRepository');
+const createAuthMiddleware = require('../src/middleware/auth');
+const setupPriceRoute = require('../src/routes/routes_price');
 const jwt = require('jsonwebtoken');
 
 describe('GET /price', () => {
   let server;
+  let db;
+  let repository;
   
-  const VALID_TOKEN = jwt.sign({}, process.env.JWT_SECRET, { expiresIn: '1h' });
+  const JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
+  const VALID_TOKEN = jwt.sign({}, JWT_SECRET, { expiresIn: '1h' });
   const authHeaders = { Authorization: `Bearer ${VALID_TOKEN}` };
 
   beforeAll((done) => {
-    const app = createApp({ authToken: process.env.JWT_SECRET });
+    db = new Database(':memory:');
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+    
+    repository = new CurrencyRepository(db);
+    
+    const currencyStore = {
+      getCurrencies: () => repository.getAll(),
+      getCurrencyByTicker: (ticker) => repository.getByTicker(ticker),
+      reset: () => repository.reset()
+    };
+
+    const app = express();
+    app.use(express.json());
+    
+    const authMiddleware = createAuthMiddleware(JWT_SECRET);
+    app.use(authMiddleware);
+    
+    setupPriceRoute(app, currencyStore);
+    
+    app.use((err, req, res, next) => {
+      const statusCode = err.statusCode || 500;
+      res.status(statusCode).json({
+        error: err.message,
+        timestamp: err.timestamp || new Date().toISOString()
+      });
+    });
+    
     server = app.listen(0, done);
   });
 
   afterAll((done) => {
-    server.close(() => done());
+    server.close(() => {
+      db.close();
+      done();
+    });
   });
 
   beforeEach(() => {
-    currencyStore.reset();
-    currencyStore.addCurrency({ name: 'Bitcoin', ticker: 'BTC' });
-    currencyStore.addCurrency({ name: 'Ethereum', ticker: 'ETH' });
+    repository.reset();
+    repository.create({ name: 'Bitcoin', ticker: 'BTC' });
+    repository.create({ name: 'Ethereum', ticker: 'ETH' });
     fetchBinancePrices.mockClear();
   });
 
