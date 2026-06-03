@@ -1,26 +1,68 @@
 const http = require('http');
 const jwt = require('jsonwebtoken');
+const Database = require('better-sqlite3');
 const createApp = require('../src/app');
-const currencyStore = require('../src/store/store_currencies');
-require('dotenv').config();
+const CurrencyRepository = require('../src/repositories/CurrencyRepository');
 
 describe('CRUD /currencies', () => {
   let server;
-  const JWT_SECRET = process.env.JWT_SECRET;
+  let db;
+  let repository;
+  
+  const JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
   const validToken = jwt.sign({}, JWT_SECRET, { expiresIn: '1h' });
   const authHeaders = { Authorization: `Bearer ${validToken}` };
 
   beforeAll((done) => {
-    const app = createApp({ authToken: JWT_SECRET });
-    server = app.listen(0, done);
+    db = new Database(':memory:');
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+    
+    repository = new CurrencyRepository(db);
+    
+    const currencyStore = {
+      getCurrencies: () => repository.getAll(),
+      getCurrencyById: (id) => repository.getById(id),
+      getCurrencyByTicker: (ticker) => repository.getByTicker(ticker),
+      addCurrency: (data) => repository.create(data),
+      updateCurrency: (id, data) => repository.update(id, data),
+      deleteCurrency: (id) => repository.delete(id),
+      reset: () => repository.reset()
+    };
+
+    const app = require('../src/app')({ authToken: JWT_SECRET });
+    
+    const express = require('express');
+    const createAuthMiddleware = require('../src/middleware/auth');
+    const setupCurrenciesRoute = require('../src/routes/routes_currencies');
+    
+    const testApp = express();
+    testApp.use(express.json());
+    
+    const authMiddleware = createAuthMiddleware(JWT_SECRET);
+    testApp.use(authMiddleware);
+    
+    setupCurrenciesRoute(testApp, currencyStore);
+    
+    testApp.use((err, req, res, next) => {
+      const statusCode = err.statusCode || 500;
+      res.status(statusCode).json({
+        error: err.message,
+        timestamp: err.timestamp || new Date().toISOString()
+      });
+    });
+    
+    server = testApp.listen(0, done);
   });
 
   afterAll((done) => {
     server.close(() => {
+      db.close();
       done();
     });
   });
-  beforeEach(() => currencyStore.reset());
+
+  beforeEach(() => repository.reset());
 
   test('POST should create currency and return 201', async () => {
     const res = await httpRequest(server, '/currencies', {
@@ -30,6 +72,7 @@ describe('CRUD /currencies', () => {
     });
     expect(res.statusCode).toBe(201);
     expect(res.data).toHaveProperty('id');
+    expect(typeof res.data.id).toBe('number');
     expect(res.data.name).toBe('Euro');
   });
 

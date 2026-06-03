@@ -56,7 +56,22 @@ paths:
       - in: path
         name: id
         required: true
-        schema: { type: string }
+        schema: { type: integer }
+    get:
+      summary: Получить валюту по ID
+      tags: [Currency]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Валюта найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Currency'
+        '400':
+          description: Невалидный ID
+        '404':
+          description: Валюта не найдена
     put:
       summary: Обновить валюту
       tags: [Currency]
@@ -117,7 +132,7 @@ components:
     Currency:
       type: object
       properties:
-        id: { type: string, readOnly: true }
+        id: { type: integer, readOnly: true }
         name: { type: string }
         ticker: { type: string }
     CurrencyInput:
