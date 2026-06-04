@@ -12,6 +12,11 @@ dotenv
 jest
 better-sqlite3
 
+## Инициализация базы данных
+```
+npm run db-init
+```
+
 ## Запуск проекта
 
 ```bash
