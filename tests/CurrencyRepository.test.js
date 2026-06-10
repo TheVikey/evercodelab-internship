@@ -1,5 +1,5 @@
 const Database = require('better-sqlite3');
-const CurrencyRepository = require('../src/repositories/');
+const CurrencyRepository = require('../src/repositories/CurrencyRepository');
 
 describe('CurrencyRepository', () => {
   let db;

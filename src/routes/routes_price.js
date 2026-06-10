@@ -1,27 +1,34 @@
-const { fetchBinancePrices } = require('../services/services_binanceClient');
 const ValidationError = require('../errors/ValidationError');
 const NotFoundError = require('../errors/NotFoundError');
+const priceStore = require('../store/store_prices');
 
-function setupPriceRoute(app, currencyStore) {
-  app.get('/price', async (req, res, next) => {
+function setupPriceRoute(app, currencyStore, priceStoreOverride) {
+  const store = priceStoreOverride || priceStore;
+
+  app.get('/price', (req, res, next) => {
     try {
       const { currency } = req.query;
 
       if (!currency || typeof currency !== 'string' || currency.trim() === '') {
-        return next(new ValidationError('Query parameter "currency" is required'));
+        throw new ValidationError('Query parameter "currency" is required');
       }
 
       const ticker = currency.trim().toUpperCase();
 
       const exists = currencyStore.getCurrencyByTicker(ticker);
       if (!exists) {
-        return next(new NotFoundError(`Currency "${ticker}" not found in local database`));
+        throw new NotFoundError(`Currency "${ticker}" not found in local database`);
       }
 
-      const allPrices = await fetchBinancePrices();
-      const filtered = allPrices.filter(p => p.symbol.includes(ticker));
+      const prices = store.getPricesByTicker(ticker);
 
-      res.json(filtered);
+      if (prices.length === 0) {
+        throw new NotFoundError(
+          `No prices found for "${ticker}". Prices may not have been fetched yet.`
+        );
+      }
+
+      res.json(prices);
     } catch (err) {
       next(err);
     }

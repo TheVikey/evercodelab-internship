@@ -16,7 +16,7 @@ function createApp(options = {}) {
   app.use(authMiddleware);
 
   setupCurrenciesRoute(app, currencyStore);
-  setupPriceRoute(app, currencyStore);
+  setupPriceRoute(app, currencyStore, options.priceStore);
 
   app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;
@@ -30,4 +30,3 @@ function createApp(options = {}) {
 }
 
 module.exports = createApp;
-
