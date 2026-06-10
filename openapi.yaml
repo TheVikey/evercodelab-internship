@@ -94,9 +94,9 @@ paths:
       responses:
         '204':
           description: Успешно удалено
-  /price:
+    /price:
     get:
-      summary: Получить курсы с Binance для указанной валюты
+      summary: Получить сохранённые курсы для указанной валюты
       tags: [Price]
       security: [{ bearerAuth: [] }]
       parameters:
@@ -107,20 +107,17 @@ paths:
           description: Тикер валюты (должен существовать в локальной БД)
       responses:
         '200':
-          description: Список пар, содержащих тикер
+          description: Список пар, содержащих тикер (из локальной БД, обновляется раз в минуту)
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
-                  properties:
-                    symbol: { type: string }
-                    price: { type: string }
+                  $ref: '#/components/schemas/Price'
         '400':
           description: Параметр currency не указан или невалиден
         '404':
-          description: Валюта не найдена в локальной БД
+          description: Валюта не найдена в БД или цены ещё не обновлены
 
 components:
   securitySchemes:
@@ -141,3 +138,9 @@ components:
       properties:
         name: { type: string, example: "US Dollar" }
         ticker: { type: string, example: "USD" }
+    Price:
+      type: object
+      properties:
+        symbol: { type: string, example: "BTCUSDT" }
+        price: { type: string, example: "61200.00" }
+        updated_at: { type: string, format: date-time }

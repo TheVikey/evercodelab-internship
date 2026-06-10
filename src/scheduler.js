@@ -1,6 +1,7 @@
 const ValidationError = require('./errors/ValidationError');
 
 function createScheduler(logger) {
+  const intervals = [];
 
   logger.info('Scheduler started');
 
@@ -20,14 +21,34 @@ function createScheduler(logger) {
 
     logger.info(`Task "${name}" scheduled`);
 
-    setInterval(() => {
+    const id = setInterval(() => {
       logger.info(`Task "${name}" started`);
-      task();
+      try {
+        const result = task();
+        if (result && typeof result.then === 'function') {
+          result.catch((err) => {
+            logger.error(`Task "${name}" failed: ${err.message}`);
+          });
+        }
+      } catch (err) {
+        logger.error(`Task "${name}" failed: ${err.message}`);
+      }
     }, interval);
+
+    intervals.push(id);
+
+    return id;
+  }
+
+  function stopAll() {
+    intervals.forEach(id => clearInterval(id));
+    intervals.length = 0;
+    logger.info('All scheduled tasks stopped');
   }
 
   return {
-    scheduleTask
+    scheduleTask,
+    stopAll
   };
 }
 
