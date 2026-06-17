@@ -1,13 +1,30 @@
 openapi: 3.0.3
 info:
-  title: Evercodelabs Internship API
-  version: 1.2.0
-  description: CRUD для валют и health-check эндпоинт
+  title: Crypto Tracking Service
+  description: REST API для управления криптовалютами, кошельками и получения данных из Binance/BSC
+  version: 1.4.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+tags:
+  - name: Status
+    description: Health check
+  - name: Currency
+    description: Управление списком отслеживаемых криптовалют
+  - name: Price
+    description: Актуальные и исторические курсы
+  - name: Wallet
+    description: Управление списком отслеживаемых адресов
+  - name: Blockchain
+    description: Данные блокчейна
+
 paths:
   /status:
     get:
-      summary: Проверка работоспособности сервера
-      tags: [Monitoring]
+      summary: Health check
+      tags: [Status]
       responses:
         '200':
           description: Сервер работает
@@ -19,20 +36,22 @@ paths:
 
   /currencies:
     get:
-      summary: Получить список всех валют
+      summary: Получить список всех криптовалют
       tags: [Currency]
       security: [{ bearerAuth: [] }]
       responses:
         '200':
-          description: Успешный список
+          description: Список криптовалют
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Currency'
+        '403':
+          description: Неавторизован
     post:
-      summary: Создать новую валюту
+      summary: Добавить криптовалюту для отслеживания
       tags: [Currency]
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -40,16 +59,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CurrencyInput'
+              type: object
+              required: [name, ticker]
+              properties:
+                name: { type: string, example: Bitcoin }
+                ticker: { type: string, example: BTC }
       responses:
         '201':
-          description: Валюта создана
+          description: Валюта добавлена
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Currency'
         '400':
           description: Ошибка валидации
+        '403':
+          description: Неавторизован
 
   /currencies/{id}:
     parameters:
@@ -58,7 +83,7 @@ paths:
         required: true
         schema: { type: integer }
     get:
-      summary: Получить валюту по ID
+      summary: Получить криптовалюту по ID
       tags: [Currency]
       security: [{ bearerAuth: [] }]
       responses:
@@ -71,9 +96,9 @@ paths:
         '400':
           description: Невалидный ID
         '404':
-          description: Валюта не найдена
+          description: Не найдена
     put:
-      summary: Обновить валюту
+      summary: Обновить криптовалюту
       tags: [Currency]
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -81,22 +106,36 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CurrencyInput'
+              type: object
+              properties:
+                name: { type: string }
+                ticker: { type: string }
       responses:
         '200':
-          description: Валюта обновлена
+          description: Обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Currency'
+        '400':
+          description: Ошибка валидации
         '404':
-          description: Не найдено
+          description: Не найдена
     delete:
-      summary: Удалить валюту
+      summary: Удалить криптовалюту
       tags: [Currency]
       security: [{ bearerAuth: [] }]
       responses:
         '204':
-          description: Успешно удалено
-    /price:
+          description: Удалена
+        '400':
+          description: Невалидный ID
+        '404':
+          description: Не найдена
+
+  /price:
     get:
-      summary: Получить сохранённые курсы для указанной валюты
+      summary: Получить актуальные курсы для указанной валюты
       tags: [Price]
       security: [{ bearerAuth: [] }]
       parameters:
@@ -104,10 +143,10 @@ paths:
           name: currency
           required: true
           schema: { type: string }
-          description: Тикер валюты (должен существовать в локальной БД)
+          description: Тикер валюты (должен существовать в БД)
       responses:
         '200':
-          description: Список пар, содержащих тикер (из локальной БД, обновляется раз в минуту)
+          description: Список пар с актуальными курсами (из локальной БД, обновляется раз в минуту)
           content:
             application/json:
               schema:
@@ -115,32 +154,260 @@ paths:
                 items:
                   $ref: '#/components/schemas/Price'
         '400':
-          description: Параметр currency не указан или невалиден
+          description: Параметр currency не указан
         '404':
-          description: Валюта не найдена в БД или цены ещё не обновлены
+          description: Валюта не найдена или цены ещё не обновлены
+
+  /price/{ticker}/history:
+    parameters:
+      - in: path
+        name: ticker
+        required: true
+        schema: { type: string }
+        description: Тикер валюты (например, BTC)
+    get:
+      summary: Получить историю цен по валюте
+      tags: [Price]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: interval
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 1h, 4h, 1d, 1w]
+            default: 1h
+          description: Интервал свечей
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+          description: Количество записей
+      responses:
+        '200':
+          description: История цен
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PriceHistory'
+        '400':
+          description: Невалидный interval или limit
+        '404':
+          description: Валюта не найдена или история отсутствует
+
+  /wallets:
+    get:
+      summary: Получить список всех отслеживаемых адресов
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Список кошельков
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Wallet'
+        '403':
+          description: Неавторизован
+    post:
+      summary: Добавить адрес для отслеживания
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [address, blockchain]
+              properties:
+                address:
+                  type: string
+                  example: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+                blockchain:
+                  type: string
+                  enum: [bsc, eth, btc]
+                  example: bsc
+                label:
+                  type: string
+                  example: Main Wallet
+      responses:
+        '201':
+          description: Кошелёк добавлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '400':
+          description: Ошибка валидации
+        '403':
+          description: Неавторизован
+
+  /wallets/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    get:
+      summary: Получить кошелёк по ID
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Кошелёк найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '400':
+          description: Невалидный ID
+        '404':
+          description: Не найден
+    put:
+      summary: Обновить кошелёк
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                address: { type: string }
+                blockchain:
+                  type: string
+                  enum: [bsc, eth, btc]
+                label: { type: string }
+      responses:
+        '200':
+          description: Обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '400':
+          description: Ошибка валидации
+        '404':
+          description: Не найден
+    delete:
+      summary: Удалить кошелёк
+      tags: [Wallet]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204':
+          description: Удалён
+        '400':
+          description: Невалидный ID
+        '404':
+          description: Не найден
+
+  /wallets/{address}/balance:
+    parameters:
+      - in: path
+        name: address
+        required: true
+        schema: { type: string }
+        description: EVM-совместимый адрес (0x + 40 hex символов)
+    get:
+      summary: Получить актуальный баланс по адресу
+      tags: [Blockchain]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Баланс адреса (из локальной БД, обновляется каждые 2 минуты)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletBalance'
+        '400':
+          description: Невалидный формат адреса
+        '404':
+          description: Кошелёк не найден или баланс ещё не обновлён
+
+  /blockchain/height:
+    get:
+      summary: Получить актуальную высоту блокчейна
+      tags: [Blockchain]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: blockchain
+          schema:
+            type: string
+            default: bsc
+            enum: [bsc, eth, btc]
+          description: Блокчейн
+      responses:
+        '200':
+          description: Высота блока (из локальной БД, обновляется каждые 10 секунд)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockHeight'
+        '400':
+          description: Невалидный блокчейн
+        '404':
+          description: Высота ещё не синхронизирована
 
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: "JWT"
+      bearerFormat: JWT
+
   schemas:
     Currency:
       type: object
       properties:
-        id: { type: integer, readOnly: true }
-        name: { type: string }
-        ticker: { type: string }
-    CurrencyInput:
-      type: object
-      required: [name, ticker]
-      properties:
-        name: { type: string, example: "US Dollar" }
-        ticker: { type: string, example: "USD" }
+        id: { type: integer, example: 1 }
+        name: { type: string, example: Bitcoin }
+        ticker: { type: string, example: BTC }
+
     Price:
       type: object
       properties:
-        symbol: { type: string, example: "BTCUSDT" }
+        symbol: { type: string, example: BTCUSDT }
         price: { type: string, example: "61200.00" }
+        updated_at: { type: string, format: date-time }
+
+    PriceHistory:
+      type: object
+      properties:
+        symbol: { type: string, example: BTCUSDT }
+        price: { type: string, example: "61200.00" }
+        interval: { type: string, example: 1h }
+        timestamp: { type: integer, example: 1700000000000 }
+
+    Wallet:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        address: { type: string, example: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb" }
+        blockchain: { type: string, example: bsc }
+        label: { type: string, example: Main Wallet, nullable: true }
+        balance: { type: string, example: "1.50000000", nullable: true }
+        balance_updated_at: { type: string, format: date-time, nullable: true }
+
+    WalletBalance:
+      type: object
+      properties:
+        address: { type: string, example: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb" }
+        blockchain: { type: string, example: bsc }
+        balance: { type: string, example: "1.50000000" }
+        updated_at: { type: string, format: date-time }
+
+    BlockHeight:
+      type: object
+      properties:
+        blockchain: { type: string, example: bsc }
+        height: { type: integer, example: 40000000 }
         updated_at: { type: string, format: date-time }

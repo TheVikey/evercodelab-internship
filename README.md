@@ -5,12 +5,6 @@
 ```bash
 npm install
 ```
-## Нужно установить:
-express
-jsonwebtoken
-dotenv
-jest
-better-sqlite3
 
 ## Инициализация базы данных
 ```
@@ -34,25 +28,73 @@ npm test
 node -e "const jwt=require('jsonwebtoken'); const cfg=require('./src/config'); console.log(jwt.sign({}, cfg.authToken, {expiresIn:'1h'}));"
 ```
 
-## Добавление тикера в базу, выполняется во втором окне командной строки, при запущеном проекте
+# Управление валютами
+
+## Создать валюту
 ```
-curl -X POST http://localhost:3000/currencies -H "Content-Type: application/json" -H "Authorization: Bearer <ТВОЙ_TOKEN>" -d "{\"name\":\"Bitcoin\",\"ticker\":\"BTC\"}"
-```
-## Посмотреть курсы из Binance, выполняется во втором окне командной строки, при запущеном проекте
-```
-curl -X GET "http://localhost:3000/price?currency=BTC" -H "Authorization: Bearer <ТВОЙ_TOKEN>"
-```
-## Посмотреть все валюты из базы данных
-```
-curl http://localhost:3000/currencies -H "Authorization: Bearer YOUR_JWT_TOKEN"
+curl.exe -X POST http://localhost:3000/currencies -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN>" -d "{\"name\":\"Bitcoin\",\"ticker\":\"BTC\"}"
 ```
 
-## Обновить запись в базе данных
+## Создать ещё одну
 ```
-curl -X PUT http://localhost:3000/currencies/3 -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_JWT_TOKEN" -d "{\"name\":\"new Name\", \"ticker\":\"new Ticker\"}"
+curl.exe -X POST http://localhost:3000/currencies -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN>" -d "{\"name\":\"Ethereum\",\"ticker\":\"ETH\"}"
 ```
 
-## Удалить запись из базы данных используя id
+## Получить все
 ```
-curl -X DELETE http://localhost:3000/currencies/2 -H "Authorization: Bearer YOUR_JWT_TOKEN"
+curl.exe http://localhost:3000/currencies -H "Authorization: Bearer <TOKEN>"
 ```
+
+## Получить по ID
+```
+curl.exe http://localhost:3000/currencies/1 -H "Authorization: Bearer <TOKEN>"
+```
+
+## Обновить
+```
+curl.exe -X PUT http://localhost:3000/currencies/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN>" -d "{\"name\":\"Bitcoin Updated\"}"
+```
+
+## Удалить
+```
+curl.exe -X DELETE http://localhost:3000/currencies/2 -H "Authorization: Bearer <TOKEN>"
+```
+
+## Актуальные цены (из БД, обновляются фоновой задачей каждую минуту)
+```
+curl.exe "http://localhost:3000/price?currency=BTC" -H "Authorization: Bearer <TOKEN>"
+```
+
+## История цен
+```
+curl.exe "http://localhost:3000/price/BTC/history?interval=1h&limit=10" -H "Authorization: Bearer <TOKEN>"
+```
+
+## Управление адресами
+
+## Создание адреса
+```
+curl.exe -X POST http://localhost:3000/wallets -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN>" -d "{\"address\":\"0x8894E0a0c962CB723c1ef8580d0543D766927E2b\",\"blockchain\":\"bsc\",\"label\":\"My Wallet\"}"
+```
+
+## Получить все (из БД, обновляются фоновой задачей)
+```
+curl.exe http://localhost:3000/wallets -H "Authorization: Bearer <TOKEN>"
+```
+
+## Получить по ID
+```
+curl.exe http://localhost:3000/wallets/1 -H "Authorization: Bearer <TOKEN>"
+```
+
+## Обновить
+```
+curl.exe -X PUT http://localhost:3000/wallets/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN>" -d "{\"label\":\"Updated Wallet\"}"
+```
+
+## Удалить
+```
+curl.exe -X DELETE http://localhost:3000/wallets/1 -H "Authorization: Bearer <TOKEN>"
+```
+
+## Проект поодерживает обновление курсов и истории цен, которые есть на Binance, высоту блокчейна можно посмотреть только для BSC
